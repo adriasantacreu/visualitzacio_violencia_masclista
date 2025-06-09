@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard: Anàlisi de Violència Masclista</title>
+    <!-- Carrega de Tailwind CSS per a l'estil de la pàgina -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Carrega de la llibreria D3.js -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <!-- Fonts de Google -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #f3f4f6;
+            --main-bg-color: rgba(255, 255, 255, 0.7);
+            --sidebar-bg-color: #ffffff;
+            --text-primary: #1f2937;
+            --text-secondary: #4b5563;
+            --border-color: #e5e7eb;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            overflow: hidden;
+        }
+        .view-container { display: none; width: 100%; height: 100%; }
+        .view-container.active { display: block; }
+        .nav-item {
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 6px;
+            transition: background-color 0.2s, color 0.2s;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+        .nav-item:hover { background-color: #f3f4f6; }
+        .nav-item.active { background-color: #3b82f6; color: white; }
+        .tooltip {
+            position: absolute; text-align: center; padding: 8px 12px; font-size: 12px;
+            background: rgba(17, 24, 39, 0.9); color: white; border-radius: 8px;
+            pointer-events: none; opacity: 0; transition: opacity 0.2s; backdrop-filter: blur(5px);
+        }
+        /* Estils específics per als gràfics */
+        .node text { pointer-events: none; font-size: 12px; font-weight: 600; fill: var(--text-primary); paint-order: stroke; stroke: var(--main-bg-color); stroke-width: 3px; }
+        .link { stroke-opacity: 0.5; transition: stroke-opacity 0.3s ease, stroke 0.3s ease; }
+        .calendar-year { font-size: 1.5rem; font-weight: bold; fill: #a0a0a0; text-anchor: middle; }
+    </style>
+</head>
+<body class="w-screen h-screen">
+
+    <div class="flex h-full">
+        <!-- Barra Lateral -->
+        <aside class="w-80 h-full bg-white shadow-lg p-6 flex flex-col shrink-0">
+            <header class="mb-6">
+                <h1 class="text-2xl font-bold text-gray-800">Anàlisi de Violència</h1>
+                <p class="text-gray-500 text-sm mt-1">Projecte de Visualització de Dades</p>
+            </header>
+
+            <nav id="navigation-menu" class="space-y-2 mb-6">
+                <div id="nav-network" class="nav-item active" data-view="view-network">Xarxa de Co-ocurrència</div>
+                <div id="nav-stream" class="nav-item" data-view="view-stream">Riu Temporal d'Àmbits</div>
+                <div id="nav-calendar" class="nav-item" data-view="view-calendar">Calendari de Trucades</div>
+                <div id="nav-sunburst" class="nav-item" data-view="view-sunburst">Jerarquia de Derivacions</div>
+            </nav>
+
+            <div id="sidebar-info" class="space-y-4 mb-6 flex-grow overflow-y-auto">
+                <!-- El contingut aquí canviarà dinàmicament -->
+            </div>
+
+            <footer class="text-xs text-gray-400 mt-4">
+                <p>Font: Dades Obertes Catalunya</p>
+                <p>Visualització: Adrià Santacreu (D3.js)</p>
+            </footer>
+        </aside>
+
+        <!-- Contingut Principal -->
+        <main class="flex-grow h-full p-4">
+            <div id="main-content" class="w-full h-full rounded-xl bg-white/60 shadow-inner backdrop-blur-xl border border-gray-200 overflow-hidden">
+                <div id="view-network" class="view-container active"></div>
+                <div id="view-stream" class="view-container"></div>
+                <div id="view-calendar" class="view-container" style="overflow-y: auto;"></div>
+                <div id="view-sunburst" class="view-container"></div>
+            </div>
+            <div class="tooltip"></div>
+        </main>
+    </div>
+
+    <script>
+        // --- Variables Globals ---
+        const tooltip = d3.select(".tooltip");
+        let parsedData = null;
+        const parseDate = d3.timeParse("%d/%m/%Y");
+
+        // --- Gestió de Vistes i UI ---
+        function switchView(viewId) {
+            document.querySelectorAll('.view-container').forEach(v => v.classList.remove('active'));
+            document.getElementById(viewId).classList.add('active');
+
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.querySelector(`.nav-item[data-view='${viewId}']`).classList.add('active');
+            
+            updateSidebarInfo(viewId);
+            
+            // Dibuixa la vista si no s'ha dibuixat abans ("Lazy loading")
+            const container = d3.select(`#${viewId}`);
+            if (container.select("svg").empty()) {
+                switch (viewId) {
+                    case 'view-network':
+                        drawNetworkGraph(parsedData, container);
+                        break;
+                    case 'view-stream':
+                        drawStreamgraph(parsedData, container);
+                        break;
+                    case 'view-calendar':
+                        drawCalendarHeatmap(parsedData, container);
+                        break;
+                    case 'view-sunburst':
+                        drawSunburst(parsedData, container);
+                        break;
+                }
+            }
+        }
+
+        function updateSidebarInfo(viewId) {
+            const infoContainer = document.getElementById('sidebar-info');
+            infoContainer.innerHTML = ''; // Neteja la barra lateral
+            switch (viewId) {
+                case 'view-network':
+                    infoContainer.innerHTML = `<h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Informació</h2><p class="text-sm text-gray-600">Aquesta xarxa mostra quins tipus de violència es reporten junts. La mida dels cercles indica el total de casos per tipus, i el gruix de les línies, la freqüència.</p><div id="legend-network" class="space-y-2 mt-4"></div>`;
+                    drawNetworkLegend(parsedData);
+                    break;
+                case 'view-stream':
+                    infoContainer.innerHTML = `<h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Informació</h2><p class="text-sm text-gray-600">Il·lustra l'evolució mensual de la proporció de cada àmbit de la violència al llarg del temps.</p><div id="legend-stream" class="space-y-2 mt-4"></div>`;
+                    drawStreamgraphLegend(parsedData);
+                    break;
+                case 'view-calendar':
+                    infoContainer.innerHTML = `<h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Informació</h2><p class="text-sm text-gray-600">El mapa de calor mostra el volum diari de trucades. Els dies més foscos indiquen un major nombre de trucades.</p>`;
+                    break;
+                case 'view-sunburst':
+                     infoContainer.innerHTML = `<h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Informació</h2><p class="text-sm text-gray-600">Visualització jeràrquica de les derivacions. Clica en un segment per fer zoom.</p>`;
+                    break;
+            }
+        }
+        
+        // --- Navegació ---
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', (event) => {
+                switchView(event.currentTarget.dataset.view);
+            });
+        });
+
+        // --- Càrrega i Processament Global de Dades ---
+        d3.csv("linia_atencio_violencia_masclista.csv", d => {
+            const date = parseDate(d.Data);
+            if (date) {
+                d.parsedDate = date;
+                return d;
+            }
+            return null; // Ignora files amb data invàlida
+        }).then(function(data) {
+            const vmData = data.filter(d => d && d["Motiu Trucada"] === "Violència masclista");
+            parsedData = vmData;
+            
+            // Inicia la primera vista
+            switchView('view-network');
+             if (d3.select("#view-network").select("svg").empty()) {
+                drawNetworkGraph(parsedData, d3.select("#view-network"));
+             }
+
+        }).catch(error => {
+            console.error("Error en carregar o processar les dades:", error);
+            document.getElementById('main-content').innerHTML = `<div class="text-red-600 text-center p-8">Error: No s'ha pogut carregar el fitxer <strong>linia_atencio_violencia_masclista.csv</strong>.<br/>Assegura't que el fitxer es troba a la mateixa carpeta.</div>`;
+        });
+        
+        // --- Funcions de Dibuix de Llegenda ---
+        function drawNetworkLegend(data){
+             const color = d3.scaleOrdinal(d3.schemeCategory10).domain(["central", "psicològica", "física", "sexual", "econòmica"]);
+             const tipusViolencia = {'psicològica': 'Violència psicològica', 'física': 'Violència física', 'sexual': 'Violència sexual', 'econòmica': 'Violència econòmica'};
+             const legendContainer = d3.select("#legend-network");
+             legendContainer.selectAll("*").remove();
+             const legendItems = [{group: "central", name: "Node Central"}, ...Object.keys(tipusViolencia).map(key => ({ group: key, name: tipusViolencia[key] }))];
+             legendContainer.selectAll(".legend-item").data(legendItems).enter().append("div").attr("class", "flex items-center").html(d => `<div class="w-3 h-3 rounded-full mr-3" style="background-color: ${color(d.group)}"></div><span class="text-sm text-gray-600">${d.name}</span>`);
+        }
+
+        function drawStreamgraphLegend(data) {
+             const ambits = [...new Set(data.map(d => d["Àmbit violència masclista"]))].filter(d => d && d !== "No consta");
+             const color = d3.scaleOrdinal().domain(ambits).range(d3.schemeTableau10);
+             const legendContainer = d3.select("#legend-stream");
+             legendContainer.selectAll("*").remove();
+             legendContainer.selectAll(".legend-item").data(ambits).enter().append("div").attr("class", "flex items-center").html(d => `<div class="w-3 h-3 rounded-full mr-3" style="background-color: ${color(d)}"></div><span class="text-sm text-gray-600">${d}</span>`);
+        }
+        
+        // --- Dibuix de la Xarxa de Co-ocurrència (Network Graph) ---
+        function drawNetworkGraph(data, container) {
+            container.selectAll("*").remove();
+            const color = d3.scaleOrdinal(d3.schemeCategory10).domain(["central", "psicològica", "física", "sexual", "econòmica"]);
+            const tipusViolencia = {'psicològica': 'Violència psicològica', 'física': 'Violència física', 'sexual': 'Violència sexual', 'econòmica': 'Violència econòmica'};
+            const nodes = [{ id: "Violència Masclista", group: "central", count: data.length }, ...Object.keys(tipusViolencia).map(key => ({id: tipusViolencia[key], group: key, count: data.filter(d => d[tipusViolencia[key]] === 'Sí').length}))];
+            let coOccurrences = {};
+            const tipusKeys = Object.keys(tipusViolencia);
+            tipusKeys.forEach(k1 => tipusKeys.forEach(k2 => { if (k1 < k2) coOccurrences[[tipusViolencia[k1], tipusViolencia[k2]].sort().join('-')] = 0; }));
+            data.forEach(d => {
+                const reported = tipusKeys.filter(k => d[tipusViolencia[k]] === 'Sí');
+                for (let i = 0; i < reported.length; i++) for (let j = i + 1; j < reported.length; j++) coOccurrences[[tipusViolencia[reported[i]], tipusViolencia[reported[j]]].sort().join('-')]++;
+            });
+            const links = Object.keys(coOccurrences).filter(key => coOccurrences[key] > 0).map(key => { const [source, target] = key.split('-'); return { source, target, value: coOccurrences[key] }; });
+            nodes.forEach(node => { if (node.group !== 'central') links.push({ source: "Violència Masclista", target: node.id, value: node.count / 20 }); });
+            
+            const svg = container.append("svg").attr("width", "100%").attr("height", "100%");
+            const width = container.node().getBoundingClientRect().width;
+            const height = container.node().getBoundingClientRect().height;
+            svg.attr("viewBox", `0 0 ${width} ${height}`);
+            const nodeScale = d3.scaleSqrt().domain([0, d3.max(nodes, d => d.count)]).range([8, 60]);
+            const linkScale = d3.scaleLinear().domain([1, d3.max(links, d => d.value)]).range([1.5, 18]);
+
+            const simulation = d3.forceSimulation(nodes).force("link", d3.forceLink(links).id(d => d.id).distance(200).strength(0.1)).force("charge", d3.forceManyBody().strength(-1000)).force("center", d3.forceCenter(width / 2, height / 2)).force("collide", d3.forceCollide().radius(d => nodeScale(d.count) + 10));
+            const link = svg.append("g").selectAll("line").data(links).enter().append("line").attr("class", "link").style("stroke", "#d1d5db").style("stroke-width", d => linkScale(d.value));
+            const node = svg.append("g").selectAll(".node").data(nodes).enter().append("g").attr("class", "node").call(d3.drag().on("start", (e,d) => {if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y;}).on("drag", (e,d) => {d.fx = e.x; d.fy = e.y;}).on("end", (e,d) => {if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null;}));
+            node.append("circle").attr("r", d => nodeScale(d.count)).attr("fill", d => color(d.group)).attr("stroke", d => d3.color(color(d.group)).darker(1)).attr("stroke-width", 2.5);
+            node.append("text").text(d => d.id.replace('Violència ', '')).attr("dy", ".35em");
+            node.on("mouseover", (e, d) => { tooltip.transition().duration(200).style("opacity", 1).html(`<strong>${d.id}</strong><br/>${d.count.toLocaleString('es-ES')} casos`).style("left", (e.pageX + 15) + "px").style("top", (e.pageY - 15) + "px"); link.style('stroke', l => (l.source === d || l.target === d) ? '#4b5563' : '#d1d5db').style('stroke-opacity', l => (l.source === d || l.target === d) ? 1 : 0.2); }).on("mouseout", () => { tooltip.transition().duration(500).style("opacity", 0); link.style('stroke', '#d1d5db').style('stroke-opacity', 0.5); });
+            simulation.on("tick", () => { link.attr("x1", d => d.source.x).attr("y1", d => d.source.y).attr("x2", d => d.target.x).attr("y2", d => d.target.y); node.attr("transform", d => `translate(${d.x}, ${d.y})`); });
+        }
+        
+        // --- Dibuix del Gràfic de Riu (Streamgraph) ---
+        function drawStreamgraph(data, container) {
+            container.selectAll("*").remove();
+            const ambits = [...new Set(data.map(d => d["Àmbit violència masclista"]))].filter(d => d && d !== "No consta");
+            const color = d3.scaleOrdinal().domain(ambits).range(d3.schemeTableau10);
+
+            const dataAgg = d3.rollup(data, v => v.length, d => d3.timeMonth.floor(d.parsedDate), d => d["Àmbit violència masclista"]);
+            const seriesData = Array.from(dataAgg, ([date, values]) => {
+                const obj = {date};
+                ambits.forEach(ambit => obj[ambit] = values.get(ambit) || 0);
+                return obj;
+            }).sort((a,b) => a.date - b.date);
+
+            const stack = d3.stack().keys(ambits).order(d3.stackOrderWiggle).offset(d3.stackOffsetWiggle);
+            const series = stack(seriesData);
+            
+            const svg = container.append("svg").attr("width", "100%").attr("height", "100%");
+            const width = container.node().getBoundingClientRect().width;
+            const height = container.node().getBoundingClientRect().height;
+            svg.attr("viewBox", `0 0 ${width} ${height}`);
+
+            const x = d3.scaleTime().domain(d3.extent(seriesData, d => d.date)).range([0, width]);
+            const y = d3.scaleLinear().domain([d3.min(series, layer => d3.min(layer, d => d[0])), d3.max(series, layer => d3.max(layer, d => d[1]))]).range([height, 0]);
+            const area = d3.area().x(d => x(d.data.date)).y0(d => y(d[0])).y1(d => y(d[1]));
+
+            svg.append("g").selectAll("path").data(series).join("path")
+                .attr("d", area).attr("fill", d => color(d.key))
+                .on("mouseover", (e, d) => { tooltip.transition().style("opacity", 1).html(d.key); })
+                .on("mousemove", (e) => tooltip.style("left", (e.pageX + 10) + "px").style("top", (e.pageY - 28) + "px"))
+                .on("mouseout", () => tooltip.transition().style("opacity", 0));
+        }
+
+        // --- Dibuix del Mapa de Calor de Calendari ---
+        function drawCalendarHeatmap(data, container) {
+            container.selectAll("*").remove();
+            const dataByDay = d3.rollup(data, v => v.length, d => d3.timeDay.floor(d.parsedDate));
+            const yearsData = Array.from(d3.group(data, d => d.parsedDate.getFullYear()).keys()).sort();
+            
+            const cellSize = 17;
+            const yearHeight = cellSize * 7 + 40;
+            const svg = container.append("svg").attr("width", "100%").attr("height", yearsData.length * yearHeight + 20);
+            
+            const color = d3.scaleSequential(d3.interpolateBlues).domain([0, d3.max(dataByDay.values()) || 1]);
+
+            const yearSvg = svg.selectAll("g").data(yearsData).join("g").attr("transform", (d, i) => `translate(50, ${i * yearHeight + 50})`);
+            yearSvg.append("text").attr("x", -5).attr("y", -10).attr("class", "calendar-year").text(d => d);
+
+            yearSvg.selectAll(".day").data(d => d3.timeDays(new Date(d, 0, 1), new Date(d + 1, 0, 1))).join("rect")
+                .attr("width", cellSize - 1.5).attr("height", cellSize - 1.5)
+                .attr("x", d => d3.timeWeek.count(d3.timeYear(d), d) * cellSize)
+                .attr("y", d => d.getUTCDay() * cellSize)
+                .attr("fill", d => color(dataByDay.get(d) || 0))
+                .on("mouseover", (e, d) => { tooltip.transition().style("opacity", 1).html(`${d3.timeFormat("%d/%m/%Y")(d)}<br>${dataByDay.get(d) || 0} trucades`); })
+                .on("mousemove", (e) => tooltip.style("left", (e.pageX + 10) + "px").style("top", (e.pageY - 28) + "px"))
+                .on("mouseout", () => tooltip.transition().style("opacity", 0));
+        }
+
+        // --- Dibuix del Gràfic de Sol Naixent (Sunburst) ---
+        function drawSunburst(data, container) {
+            container.selectAll("*").remove();
+            const hierarchyData = {
+                name: "Total Derivacions",
+                children: Array.from(d3.group(data, d => d['Derivació'] || "No Especificat"), ([name, children]) => ({
+                    name,
+                    children: Array.from(d3.group(children, d => d.Xarxa || "No Especificat"), ([name, value]) => ({
+                        name,
+                        value: value.length
+                    }))
+                }))
+            };
+
+            const root = d3.hierarchy(hierarchyData).sum(d => d.value).sort((a, b) => b.value - a.value);
+            
+            const width = container.node().getBoundingClientRect().width;
+            const height = container.node().getBoundingClientRect().height;
+            const radius = Math.min(width, height) / 2 * 0.9;
+
+            const color = d3.scaleOrdinal(d3.quantize(d3.interpolateSinebow, root.children.length + 1));
+            const partition = d3.partition().size([2 * Math.PI, radius]);
+            partition(root);
+            const arc = d3.arc().startAngle(d => d.x0).endAngle(d => d.x1).padAngle(d => Math.min((d.x1 - d.x0) / 2, 0.005)).padRadius(radius / 2).innerRadius(d => d.y0).outerRadius(d => d.y1 - 1);
+            
+            const svg = container.append("svg").attr("width", "100%").attr("height", "100%").attr("viewBox", `0 0 ${width} ${height}`)
+                .style("font", "10px sans-serif");
+            
+            const g = svg.append("g").attr("transform", `translate(${width / 2},${height / 2})`);
+
+            const path = g.append("g").selectAll("path").data(root.descendants().slice(1)).join("path")
+                .attr("d", arc)
+                .attr("fill", d => { while (d.depth > 1) d = d.parent; return color(d.data.name); })
+                .attr("fill-opacity", 0.6)
+                .on("click", clicked)
+                .on("mouseover", (e,d) => { tooltip.transition().style("opacity", 1).html(`<strong>${d.ancestors().map(d => d.data.name).reverse().slice(1).join(" → ")}</strong><br>${d.value.toLocaleString()} casos`); })
+                .on("mousemove", (e) => tooltip.style("left", (e.pageX + 10) + "px").style("top", (e.pageY - 28) + "px"))
+                .on("mouseout", () => tooltip.transition().style("opacity", 0));
+            
+            path.append("title").text(d => `${d.ancestors().map(d => d.data.name).reverse().join("/")}\n${d.value.toLocaleString()}`);
+
+            const label = g.append("g").attr("pointer-events", "none").attr("text-anchor", "middle").style("user-select", "none")
+                .selectAll("text").data(root.descendants().filter(d => d.depth && (d.y0 + d.y1) / 2 * (d.x1 - d.x0) > 10)).join("text")
+                .attr("transform", function(d) {
+                    const x = (d.x0 + d.x1) / 2 * 180 / Math.PI;
+                    const y = (d.y0 + d.y1) / 2;
+                    return `rotate(${x - 90}) translate(${y},0) rotate(${x < 180 ? 0 : 180})`;
+                })
+                .attr("dy", "0.35em").text(d => d.data.name);
+
+            const parent = g.append("circle").datum(root).attr("r", radius / 3).attr("fill", "none").attr("pointer-events", "all").on("click", clicked);
+
+            function clicked(event, p) {
+                parent.datum(p.parent || root);
+                root.each(d => d.target = {x0: Math.max(0, Math.min(1, (d.x0 - p.x0) / (p.x1 - p.x0))) * 2 * Math.PI, x1: Math.max(0, Math.min(1, (d.x1 - p.x0) / (p.x1 - p.x0))) * 2 * Math.PI, y0: Math.max(0, d.y0 - p.y0), y1: Math.max(0, d.y1 - p.y0)});
+                const t = g.transition().duration(750);
+                path.transition(t).tween("data", d => { const i = d3.interpolate(d.current, d.target); return t => d.current = i(t); }).attrTween("d", d => () => arc(d.current));
+                label.transition(t).attr("fill-opacity", d => +labelVisible(d.target)).attrTween("transform", d => () => labelTransform(d.current));
+            }
+
+            function labelVisible(d) { return d.y1 <= 3 && d.y0 >= 1 && (d.y1 - d.y0) * (d.x1 - d.x0) > 0.03; }
+            function labelTransform(d) { const x = (d.x0 + d.x1) / 2 * 180 / Math.PI; const y = (d.y0 + d.y1) / 2; return `rotate(${x - 90}) translate(${y},0) rotate(${x < 180 ? 0 : 180})`; }
+            root.each(d => d.current = d);
+        }
+
+    </script>
+</body>
+</html>
