@@ -154,7 +154,7 @@
         });
 
         // --- Càrrega i Processament Global de Dades ---
-        d3.csv("linia_atencio_violencia_masclista.csv", d => {
+        d3.csv("dades_reduides.csv", d => {
             const date = parseDate(d.Data);
             if (date) {
                 d.parsedDate = date;
