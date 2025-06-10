@@ -638,22 +638,6 @@
             const afterStart = d3.timeWeek.offset(eventDate, 0); // Des de l'inici de la setmana de l'esdeveniment
             const afterEnd = d3.timeWeek.offset(eventDate, windowSize);
 
-            // --- Mock Data per a les columnes de segmentació ---
-            // Aquesta secció assumeix que les columnes 'Província', 'Gènere' i 'Franja d'edat'
-            // NO estan presents a `dades_base.csv`. Si sí que ho estan, podeu eliminar-la.
-            const provinceOptions = ['Barcelona', 'Girona', 'Lleida', 'Tarragona'];
-            const genderOptions = ['Dona', 'Home', 'Altres'];
-            const ageOptions = ['0-17', '18-25', '26-40', '41-60', '60+']; // Ordenades manualment
-            const orderedAgeOptions = ['0-17', '18-25', '26-40', '41-60', '60+']; // Ordre definit
-
-            const processedData = data.map(d => ({
-                ...d,
-                'Província': d['Província'] || provinceOptions[Math.floor(Math.random() * provinceOptions.length)],
-                'Gènere': d['Gènere'] || genderOptions[Math.floor(Math.random() * genderOptions.length)],
-                'Franja d\'edat': d['Franja d\'edat'] || ageOptions[Math.floor(Math.random() * ageOptions.length)],
-            }));
-            // --- Fi Mock Data ---
-
 
             // Agrupa les dades per la clau de segmentació seleccionada
             const aggregatedData = d3.rollup(processedData,
