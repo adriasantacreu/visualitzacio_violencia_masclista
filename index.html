@@ -4,113 +4,36 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard: Anàlisi de trucades al número de violència masclista</title>
-    <!-- Carrega de Tailwind CSS per a l'estil de la pàgina -->
+    <!-- Frameworks & Libraries -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Carrega de la llibreria D3.js -->
     <script src="https://d3js.org/d3.v7.min.js"></script>
-    <!-- Carrega de d3-sankey (es manté per si es reutilitza, tot i no ser utilitzat actualment) -->
     <script src="https://unpkg.com/d3-sankey@0.12.3/dist/d3-sankey.min.js"></script>
-    <!-- Fonts de Google -->
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Custom Styles -->
     <style>
-        /* Definició de variables CSS amb la paleta de colors lilosos */
-        :root {
-            --bg-color: #f5f0fb; /* Fons general, lila molt clar */
-            --main-bg-color: rgba(240, 230, 250, 0.8); /* Fons del contingut principal, lila transparent */
-            --sidebar-bg-color: #ffffff; /* Fons de la barra lateral, blanc pur */
-            --text-primary: #4a148c; /* Text principal, lila fosc */
-            --text-secondary: #7b1fa2; /* Text secundari, lila mitjà */
-            --border-color: #e1bee7; /* Color de la vora, lila clar */
-        }
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-primary);
-            overflow: hidden; /* Evita el scroll global */
-        }
-        /* Estils per a la gestió de vistes */
+        :root { --bg-color: #f5f0fb; --main-bg-color: rgba(240, 230, 250, 0.8); --sidebar-bg-color: #ffffff; --text-primary: #4a148c; --text-secondary: #7b1fa2; --border-color: #e1bee7; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg-color); color: var(--text-primary); overflow: hidden; }
         .view-container { display: none; width: 100%; height: 100%; }
         .view-container.active { display: block; }
-        .nav-item {
-            cursor: pointer;
-            padding: 8px 12px;
-            border-radius: 66px;
-            transition: background-color 0.2s, color 0.2s;
-            font-weight: 500;
-            color: var(--text-secondary);
-        }
-        .nav-item:hover { background-color: #f3e5f5; /* Lila clar en hover */ }
-        .nav-item.active { background-color: #9c27b0; color: white; /* Lila vibrant quan està actiu */ }
-        .tooltip {
-            position: absolute; text-align: center; padding: 8px 12px; font-size: 12px;
-            background: rgba(17, 24, 39, 0.9); color: white; border-radius: 8px;
-            pointer-events: none; opacity: 0; transition: opacity 0.2s; backdrop-filter: blur(5px);
-        }
-        /* Estils específics per als gràfics */
+        .nav-item { cursor: pointer; padding: 8px 12px; border-radius: 66px; transition: background-color 0.2s, color 0.2s; font-weight: 500; color: var(--text-secondary); }
+        .nav-item:hover { background-color: #f3e5f5; }
+        .nav-item.active { background-color: #9c27b0; color: white; }
+        .tooltip { position: absolute; text-align: center; padding: 8px 12px; font-size: 12px; background: rgba(17, 24, 39, 0.9); color: white; border-radius: 8px; pointer-events: none; opacity: 0; transition: opacity 0.2s; backdrop-filter: blur(5px); }
         .calendar-year { font-size: 1.5rem; font-weight: bold; fill: #a0a0a0; text-anchor: middle; }
-        .event-marker-rect {
-            fill: none;
-            stroke-width: 2.5px;
-            pointer-events: none;
-        }
-        /* Estils per l'eix X del gràfic de ratlles */
-        .x-axis text {
-            fill: #6a1b9a; /* Lila fosc */
-        }
-        .x-axis line, .x-axis path {
-            stroke: #6a1b9a; /* Lila fosc */
-        }
-        .event-line {
-            stroke: #c2185b; /* Lila fosc, color de línia per esdeveniments */
-            stroke-width: 2.5px;
-            pointer-events: none;
-        }
-        .event-label {
-            fill: #c2185b; /* Lila fosc, color de text per esdeveniments */
-            font-size: 12px;
-            font-weight: bold;
-        }
-        /* Estils per al gràfic de línies */
-        .line {
-            fill: none; /* Important per evitar el farcit de l'àrea */
-            stroke-width: 2px;
-            stroke-linecap: round; /* Línies amb capçal rodó per millorar l'estètica */
-        }
-        .area {
-            opacity: 0.8; /* Opacitat per les àrees apilades */
-            stroke: white; /* Contorn per distingir les àrees */
-            stroke-width: 0.5px;
-        }
-        .line-axis-label {
-            fill: #6a1b9a; /* Lila fosc */
-            font-size: 14px;
-            font-weight: 600;
-        }
-        .year-checkbox {
-            margin-right: 8px;
-            accent-color: #9c27b0; /* Color d'accent per als checkboxes */
-        }
-        /* Assegura que el contenidor SVG dels gràfics ocupa tot l'espai disponible */
-        #line-chart-svg-container, #stacked-area-chart-svg-container, #before-after-plot-svg-container {
-            height: 100%; 
-            width: 100%;
-        }
-        .focus-line {
-            stroke: black;
-            stroke-width: 1px;
-            stroke-dasharray: 3,3;
-            pointer-events: none;
-        }
-        /* Estils per al dumbbell plot */
-        .dumbbell-line {
-            stroke-linecap: round;
-        }
-        .change-label {
-            font-size: 10px;
-            font-weight: bold;
-        }
+        .event-marker-rect { fill: none; stroke-width: 2.5px; pointer-events: none; }
+        .x-axis text { fill: #6a1b9a; }
+        .x-axis line, .x-axis path { stroke: #6a1b9a; }
+        .event-line { stroke: #c2185b; stroke-width: 2.5px; pointer-events: none; }
+        .event-label { fill: #c2185b; font-size: 12px; font-weight: bold; }
+        .line { fill: none; stroke-width: 2px; stroke-linecap: round; }
+        .area { opacity: 0.8; stroke: white; stroke-width: 0.5px; }
+        .line-axis-label { fill: #6a1b9a; font-size: 14px; font-weight: 600; }
+        #before-after-plot-svg-container { height: 100%; width: 100%; }
+        .dumbbell-line { stroke-linecap: round; }
+        .change-label { font-size: 10px; font-weight: bold; }
     </style>
 </head>
 <body class="w-screen h-screen">
@@ -122,48 +45,26 @@
                 <h1 class="text-2xl font-bold text-gray-800">Anàlisi de Violència</h1>
                 <p class="text-gray-500 text-sm mt-1">Projecte de Visualització de Dades</p>
             </header>
-
             <nav id="navigation-menu" class="space-y-2 mb-6">
                 <div class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Visualitzacions Base</div>
-                <!-- Elements de navegació -->
                 <div id="nav-calendar" class="nav-item" data-view="view-calendar">Calendari de trucades</div>
                 <div id="nav-stripes" class="nav-item" data-view="view-stripes">Visualització per setmanes</div>
                 <div id="nav-before-after-plot" class="nav-item" data-view="view-before-after-plot">Canvis post-esdeveniment</div>
             </nav>
-
-            <div id="sidebar-info" class="space-y-4 mb-6 flex-grow">
-                <!-- El contingut aquí canviarà dinàmicament per a cada vista -->
-            </div>
-
+            <div id="sidebar-info" class="space-y-4 mb-6 flex-grow"></div>
             <footer class="text-xs text-gray-400 mt-4 shrink-0">
                 <p>Font: Dades Obertes Catalunya</p>
                 <p>Visualització: Adrià Santacreu (D3.js)</p>
             </footer>
         </aside>
-
+        
         <!-- Contingut Principal -->
         <main class="flex-grow h-full p-4">
             <div id="main-content" class="w-full h-full rounded-xl bg-white/60 shadow-inner backdrop-blur-xl border border-gray-200 overflow-hidden">
-                <!-- Contenidors per a les diferents vistes -->
                 <div id="view-calendar" class="view-container" style="overflow-y: auto;"></div>
                 <div id="view-stripes" class="view-container" style="overflow-y: auto;"></div>
                 <div id="view-before-after-plot" class="view-container flex flex-col p-4">
-                    <div id="before-after-filters" class="mb-4 flex items-center flex-wrap">
-                        <label for="segment-by" class="text-sm font-semibold text-gray-700 mr-2">Segmenta per:</label>
-                        <select id="segment-by" class="p-2 border rounded-md mr-4 text-sm"></select>
-
-                        <label for="event-select" class="text-sm font-semibold text-gray-700 mr-2">Esdeveniment:</label>
-                        <select id="event-select" class="p-2 border rounded-md text-sm"></select>
-
-                        <label for="custom-event-date" class="text-sm font-semibold text-gray-700 ml-4 mr-2">Data Personalitzada:</label>
-                        <input type="date" id="custom-event-date" class="p-2 border rounded-md text-sm">
-
-                        <label for="window-size" class="text-sm font-semibold text-gray-700 ml-4 mr-2">Finestra (setmanes):</label>
-                        <select id="window-size" class="p-2 border rounded-md text-sm">
-                            <option value="1">1 setmana</option>
-                            <option value="2" selected>2 setmanes</option>
-                        </select>
-                    </div>
+                    <div id="before-after-filters" class="mb-4 flex items-center flex-wrap"></div>
                     <div id="before-after-plot-svg-container" class="flex-grow"></div>
                 </div>
             </div>
@@ -175,607 +76,174 @@
         // --- Variables Globals ---
         const tooltip = d3.select(".tooltip");
         let loadedData = {};
-        // Funció per parsejar dates, s'espera el format "DD/MM/YYYY" del CSV
         const parseDate = d3.timeParse("%d/%m/%Y");
+        const parseEventDate = d3.timeParse("%Y-%m-%d");
 
-        // Paleta de colors personalitzada (tons lilosos/violetes més distintius)
-        const distinctPurplePalette = [
-            "#e0b0ff", // Very light purple
-            "#d290ff", // Light purple
-            "#c470ff", // Medium light purple
-            "#b550ff", // Medium purple
-            "#a730ff", // Medium dark purple
-            "#9910ff", // Dark purple
-            "#8b00e0"  // Deepest purple
-        ];
-
-        // Esdeveniments rellevants per al gràfic de canvis (excloent festivitats i esdeveniments feministes generals)
         const relevantEvents = [
             { date: "2020-03-14", name: "Inici Confinament COVID-19", type: "COVID" },
             { date: "2017-09-28", name: "Aprovació Pacte d'Estat", type: "Legal/Polític"},
             { date: "2022-10-07", name: "Llei 'Només sí és sí'", type: "Legal/Polític"},
             { date: "2018-04-26", name: "Sentència 'La Manada'", type: "Cas Mediàtic" },
-            // Afegir més esdeveniments si hi ha dades concretes:
-            // { date: "YYYY-MM-DD", name: "Campanya 'Hay Salida'", type: "Campanya" },
-            // { date: "YYYY-MM-DD", name: "Cas Rocío Carrasco", type: "Cas Mediàtic" }
         ];
-
-
+        
         // --- Gestió de Vistes i UI ---
         function switchView(viewId) {
-            // Desactiva totes les vistes i elements de navegació
             document.querySelectorAll('.view-container').forEach(v => v.classList.remove('active'));
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-
-            // Activa la vista i l'element de navegació corresponent
             document.getElementById(viewId).classList.add('active');
             document.querySelector(`.nav-item[data-view='${viewId}']`).classList.add('active');
-            
             updateSidebarInfo(viewId);
-            
             const container = d3.select(`#${viewId}`);
-            // Dibuixa el gràfic corresponent si les dades ja s'han carregat
             if (loadedData.base) {
-                if (viewId === 'view-calendar') {
-                    drawCalendarHeatmap(loadedData.base, container);
-                } else if (viewId === 'view-stripes') {
-                    drawStripesHeatmap(loadedData.base, container);
-                } else if (viewId === 'view-before-after-plot') {
-                    setupBeforeAfterFilters(); // Configura els filtres
-                    // La crida inicial a drawBeforeAfterPlot es farà dins de setupBeforeAfterFilters
-                }
+                if (viewId === 'view-calendar') drawCalendarHeatmap(loadedData.base, container);
+                else if (viewId === 'view-stripes') drawStripesHeatmap(loadedData.base, container);
+                else if (viewId === 'view-before-after-plot') setupBeforeAfterFilters();
             }
         }
 
-        // Funció per actualitzar la informació a la barra lateral
         function updateSidebarInfo(viewId) {
             const infoContainer = document.getElementById('sidebar-info');
-            infoContainer.innerHTML = ''; // Neteja la barra lateral
-
+            infoContainer.innerHTML = '';
             if (viewId === 'view-calendar') {
-                infoContainer.innerHTML = `<h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Informació del Calendari</h2><p class="text-sm text-gray-600">El mapa de calor mostra el volum diari de trucades. Els dies més foscos indiquen un major nombre de trucades.</p><div id="legend-calendar" class="space-y-2 mt-4"></div>`;
+                infoContainer.innerHTML = `<h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Informació del Calendari</h2><p class="text-sm text-gray-600">El mapa de calor mostra el volum diari de trucades.</p><div id="legend-calendar" class="space-y-2 mt-4"></div>`;
                 drawCalendarLegend();
             } else if (viewId === 'view-stripes') {
-                infoContainer.innerHTML = `<h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Informació de la Visualització per Setmanes</h2><p class="text-sm text-gray-600">Aquest gràfic mostra la intensitat de les trucades per violència masclista per cada setmana de l'any. Cada línia vertical representa un any.</p><div id="legend-stripes" class="space-y-2 mt-4"></div>`;
+                infoContainer.innerHTML = `<h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Visualització per Setmanes</h2><p class="text-sm text-gray-600">Mostra la intensitat de les trucades per cada setmana de l'any.</p><div id="legend-stripes" class="space-y-2 mt-4"></div>`;
                 drawStripesLegend();
             } else if (viewId === 'view-before-after-plot') {
-                infoContainer.innerHTML = `<h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Informació del Gràfic de Canvis Post-Esdeveniment</h2><p class="text-sm text-gray-600">Aquest gràfic mostra la variació percentual de trucades 1 o 2 setmanes abans vs. 1 o 2 setmanes després d'esdeveniments importants, segmentat per província, gènere o franja d'edat.</p>`;
+                infoContainer.innerHTML = `<h2 class="text-sm font-semibold text-gray-400 uppercase tracking-wider">Canvis Post-Esdeveniment</h2><p class="text-sm text-gray-600">Mostra la variació percentual de trucades abans vs. després d'esdeveniments importants.</p><p class="text-xs text-gray-500 mt-2">Només es mostren segments amb un total de 10 o més trucades.</p>`;
             }
         }
         
-        // Afegeix listeners als elements de navegació
-        document.getElementById('nav-calendar').addEventListener('click', (event) => {
-            switchView(event.currentTarget.dataset.view);
-        });
-        document.getElementById('nav-stripes').addEventListener('click', (event) => {
-            switchView(event.currentTarget.dataset.view);
-        });
-        document.getElementById('nav-before-after-plot').addEventListener('click', (event) => {
-            switchView(event.currentTarget.dataset.view);
-        });
-
-
-        // Carrega les dades CSV
-        Promise.all([
-            d3.csv("dades_base.csv"),
-            d3.csv("dades_exploracio.csv") 
-        ]).then(([baseData, exploracioData]) => {
-            if (!baseData || !exploracioData) {
-                throw new Error("Un dels fitxers CSV no s'ha pogut carregar.");
-            }
-            // Filtra i processa les dades rellevants
-            loadedData.base = baseData.map(d => { d.parsedDate = parseDate(d.Data); return d; }).filter(d => d.parsedDate && d["Motiu Trucada"] === "Violència masclista");
-            loadedData.exploracio = exploracioData.map(d => { d.parsedDate = parseDate(d.Data); return d; }).filter(d => d.parsedDate && d["Motiu Trucada"] === "Violència masclista");
-            
-            // Un cop les dades estan carregades, mostra la vista per defecte (calendari)
-            switchView('view-calendar');
-        }).catch(error => {
-            console.error("Error en carregar o processar les dades:", error);
-            document.getElementById('main-content').innerHTML = `<div class="text-red-600 text-center p-8">Error en carregar els fitxers CSV.<br/>Assegura't que 'dades_base.csv' i 'dades_exploracio.csv' es troben a la mateixa carpeta.</div>`;
-        });
+        document.getElementById('nav-calendar').addEventListener('click', (event) => switchView(event.currentTarget.dataset.view));
+        document.getElementById('nav-stripes').addEventListener('click', (event) => switchView(event.currentTarget.dataset.view));
+        document.getElementById('nav-before-after-plot').addEventListener('click', (event) => switchView(event.currentTarget.dataset.view));
         
-        // Funció d'utilitat per afegir tooltips als elements D3.js
-        function addTooltip(selection, contentFunction) {
-            selection
-                .on("mouseover", (event, d) => {
-                    tooltip.transition().duration(200).style("opacity", 1);
-                    tooltip.html(contentFunction(d));
-                })
-                .on("mousemove", (event) => {
-                    tooltip.style("left", (event.pageX + 15) + "px").style("top", (event.pageY - 15) + "px");
-                })
-                .on("mouseout", () => {
-                    tooltip.transition().duration(500).style("opacity", 0);
-                });
-        }
+        // --- Càrrega de Dades ---
+        Promise.all([d3.csv("dades_base.csv")])
+            .then(([baseData]) => {
+                if (!baseData) throw new Error("El fitxer 'dades_base.csv' no s'ha pogut carregar.");
+                loadedData.base = baseData.map(d => {
+                    d.parsedDate = parseDate(d.Data);
+                    return d;
+                }).filter(d => d.parsedDate && d["Motiu Trucada"] === "Violència masclista");
+                switchView('view-calendar');
+            }).catch(error => {
+                console.error("Error en carregar o processar les dades:", error);
+                document.getElementById('main-content').innerHTML = `<div class="text-red-600 text-center p-8">Error en carregar el fitxer CSV.<br/>Assegura't que 'dades_base.csv' es troba a la mateixa carpeta.</div>`;
+            });
         
-        // --- Llegenda del Calendari ---
-        function drawCalendarLegend() {
-            // Defineix els colors per als tipus d'esdeveniments
-            const eventColor = d3.scaleOrdinal().domain(["Reivindicatiu", "COVID", "Legal/Polític", "Cas Mediàtic", "Festivitat", "Campanya"]).range(["#c2185b","#00796b", "#1976d2","#ef6c00","#388e3c","#7b1fa2"]);
-            const legendContainer = d3.select("#legend-calendar");
-            legendContainer.selectAll("*").remove(); // Neteja la llegenda existent
-            legendContainer.append('h3').attr('class', 'text-sm font-semibold text-gray-500 mt-4').text("Llegenda d'esdeveniments");
-            
-            const legendItems = legendContainer.selectAll(".legend-item").data(eventColor.domain()).enter().append("div").attr("class", "flex items-center");
-            legendItems.append("div").attr("class", "w-3 h-3 mr-2 border-2").style("border-color", d => eventColor(d));
-            legendItems.append("span").attr("class", "text-sm text-gray-600").text(d => d);
-        }
-
-        // --- Llegenda del Gràfic de Ratlles (Stripes Heatmap) ---
-        function drawStripesLegend() {
-            const legendContainer = d3.select("#legend-stripes");
-            legendContainer.selectAll("*").remove(); // Neteja la llegenda existent
-            legendContainer.append('h3').attr('class', 'text-sm font-semibold text-gray-500 mt-4').text("Volum de Trucades");
-            
-            // Calcula la mida del contenidor de la llegenda per assegurar un ample correcte
-            const legendContainerWidth = parseInt(legendContainer.style("width"));
-            const legendWidth = legendContainerWidth - 40; // Deixa un marge per a la llegenda
-
-            // Defineix una escala de color per a la llegenda que mostri tot el rang de d3.interpolatePurples
-            const legendColorScale = d3.scaleSequential(d3.interpolatePurples).domain([0, 100]); 
-
-            const gradientId = "stripes-legend-gradient";
-            const svgLegend = legendContainer.append("svg").attr("width", legendWidth).attr("height", 25); 
-            const linearGradient = svgLegend.append("defs").append("linearGradient").attr("id", gradientId).attr("x1", "0%").attr("y1", "0%").attr("x2", "100%").attr("y2", "0%");
-            
-            linearGradient.append("stop").attr("offset", "0%").attr("stop-color", legendColorScale(0));
-            linearGradient.append("stop").attr("offset", "100%").attr("stop-color", legendColorScale(100)); 
-            
-            svgLegend.append("rect").attr("width", legendWidth).attr("height", 25).style("fill", `url(#${gradientId})`);
-
-            const legendLabels = legendContainer.append("div").attr("class", "flex justify-between text-xs text-gray-600 mt-1");
-            legendLabels.append("span").text("Baix");
-            legendLabels.append("span").text("Alt");
-        }
-
-        // --- Visualització: Mapa de Calor del Calendari ---
-        function drawCalendarHeatmap(data, container) {
-            container.selectAll("*").remove(); // Neteja qualsevol SVG preexistent
-            const dataByDay = d3.rollup(data, v => v.length, d => d3.timeDay.floor(d.parsedDate));
-            const yearsData = Array.from(d3.group(data, d => d.parsedDate.getFullYear()).keys()).sort();
-            
-            // Dades d'esdeveniments especials
-            const specialEvents = [         
-                { month: 3, day: 8, name: "Dia de la Dona", type: "Reivindicatiu" }, 
-                { date: "2018-03-08", name: "Vaga Feminista 8M", type: "Reivindicatiu" }, 
-                { month: 11, day: 25, name: "25N", type: "Reivindicatiu" }, 
-                { date: "2020-03-14", name: "Inici Confinament COVID-19", type: "COVID" }, 
-                { date: "2017-09-28", name: "Aprovació Pacte d'Estat", type: "Legal/Polític"}, 
-                { date: "2022-10-07", name: "Llei 'Només sí és sí'", type: "Legal/Polític"}, 
-                { date: "2018-04-26", name: "Sentència 'La Manada'", type: "Cas Mediàtic" }, 
-                { month: 1, day: 1, name: "Any Nou", type: "Festivitat" }, 
-                { month: 6, day: 24, name: "Sant Joan", type: "Festivitat" }, 
-                { month: 12, day: 25, name: "Nadal", type: "Festivitat" }, 
-                { month: 12, day: 10, name: "Dia Drets Humans", type: "Festivitat" }, 
-                { date: "2021-11-25", name: "Campanya 'Visibilitzem violències'", type: "Campanya" },
-            ];
-            // Colors per als esdeveniments
-            const eventColor = d3.scaleOrdinal().domain(["Reivindicatiu", "COVID", "Legal/Polític", "Cas Mediàtic", "Festivitat", "Campanya"]).range(["#c2185b","#00796b", "#1976d2","#ef6c00","#388e3c","#7b1fa2"]);
-            
-            const eventsByDate = new Map();
-            yearsData.forEach(year => {
-                specialEvents.forEach(e => {
-                    let eventDate;
-                    if (e.date) eventDate = new Date(e.date + "T00:00:00");
-                    else eventDate = new Date(year, e.month - 1, e.day); // Mesos base 0
-                    if (eventDate.getFullYear() === year) {
-                       eventsByDate.set(d3.timeDay.floor(eventDate).getTime(), e);
-                    }
-                });
-            });
-
-            const cellSize = 17; // Mida de cada cel·la del dia
-            const yearHeight = cellSize * 7 + 40; // Alçada per a cada any en el gràfic
-            const svg = container.append("svg")
-                .attr("width", "100%")
-                .attr("height", yearsData.length * yearHeight + 20); // Alçada total de l'SVG
-
-            // Escala de color per al mapa de calor (interpolació de morats)
-            const color = d3.scaleSequential(d3.interpolatePurples).domain([0, d3.max(dataByDay.values()) || 1]);
-            
-            // Grups per a cada any
-            const yearSvg = svg.selectAll("g").data(yearsData).join("g").attr("transform", (d, i) => `translate(50, ${i * yearHeight + 50})`);
-            
-            // Títol de l'any
-            yearSvg.append("text").attr("x", -5).attr("y", -10).attr("class", "calendar-year").text(d => d);
-            
-            // Cel·les per a cada dia
-            const dayCells = yearSvg.selectAll(".day").data(d => d3.timeDays(new Date(d, 0, 1), new Date(d + 1, 0, 1))).join("g");
-            
-            // Rectangle del dia (color segons el volum de trucades)
-            dayCells.append("rect")
-                .attr("width", cellSize - 1.5)
-                .attr("height", cellSize - 1.5)
-                .attr("x", d => d3.timeWeek.count(d3.timeYear(d), d) * cellSize)
-                .attr("y", d => d.getUTCDay() * cellSize)
-                .attr("fill", d => color(dataByDay.get(d) || 0));
-            
-            // Afegeix el tooltip a cada cel·la
-            dayCells.call(addTooltip, d => {
-                let eventInfo = "";
-                const event = eventsByDate.get(d.getTime());
-                if (event) eventInfo = `<br><strong>${event.name}</strong>`;
-                return `${d3.timeFormat("%d/%m/%Y")(d)}<br>${dataByDay.get(d) || 0} trucades${eventInfo}`;
-            });
-
-            // Afegir marcador per a esdeveniments especials (rectangle amb vora)
-            dayCells.append("rect")
-                .attr("class", "event-marker-rect")
-                .attr("x", d => d3.timeWeek.count(d3.timeYear(d), d) * cellSize)
-                .attr("y", d => d.getUTCDay() * cellSize)
-                .attr("width", cellSize - 1.5)
-                .attr("height", cellSize - 1.5)
-                .style("stroke", d => {
-                    const event = eventsByDate.get(d.getTime());
-                    return event ? eventColor(event.type) : "none";
-                });
-        }
-
-        // --- Visualització: Mapa de Calor de Ratlles (Stripes Heatmap) ---
-        function drawStripesHeatmap(data, container) {
-            container.selectAll("*").remove(); // Neteja qualsevol SVG preexistent
-
-            const margin = { top: 30, right: 20, bottom: 50, left: 50 };
-            const containerWidth = parseInt(container.style("width"));
-            const containerHeight = parseInt(container.style("height"));
-            const width = containerWidth - margin.left - margin.right;
-            const height = containerHeight - margin.top - margin.bottom;
-
-            const svg = container.append("svg")
-                .attr("width", containerWidth)
-                .attr("height", containerHeight)
-                .append("g")
-                .attr("transform", `translate(${margin.left},${margin.top})`);
-
-            // Prepara les dades setmanals: agrupa per l'inici de la setmana i compta el nombre de trucades
-            const dataByWeek = d3.rollup(data,
-                v => v.length,
-                d => d3.timeWeek.floor(d.parsedDate)
-            );
-
-            // Obté el rang d'anys per a l'escala X
-            const minYear = d3.min(data, d => d.parsedDate.getFullYear());
-            const maxYear = d3.max(data, d => d.parsedDate.getFullYear());
-
-            // Escala X per als anys
-            const xScaleYears = d3.scaleTime()
-                .domain([new Date(minYear, 0, 1), new Date(maxYear + 1, 0, 1)]) // Domini dels anys
-                .range([0, width]);
-
-            // Escala de color per al mapa de calor (interpolació de morats/liles)
-            const maxCallsPerWeek = d3.max(Array.from(dataByWeek.values()));
-            const color = d3.scaleSequential(d3.interpolatePurples).domain([0, maxCallsPerWeek || 1]);
-
-            // Dibuixa les ratlles (rectangles) per a cada setmana
-            const weeks = Array.from(dataByWeek.keys()).sort((a,b) => a - b);
-
-            svg.selectAll("rect")
-                .data(weeks)
-                .join("rect")
-                .attr("x", d => xScaleYears(d)) // Posició X basada en la data de la setmana
-                .attr("y", 0) // Posició Y fixa a la part superior del gràfic
-                // Calcular l'amplada de cada ratlla dinàmicament en funció del nombre total de setmanes i l'amplada del gràfic
-                .attr("width", (width / weeks.length)) 
-                .attr("height", height) // Alçada total de la ratlla
-                .attr("fill", d => color(dataByWeek.get(d) || 0)) // Color basat en el volum de trucades
-                .call(addTooltip, d => {
-                    const year = d.getFullYear();
-                    const weekNumber = d3.timeFormat("%W")(d); // Format de número de setmana (00-53)
-                    const count = dataByWeek.get(d) || 0;
-                    return `Any: ${year}<br>Setmana: ${weekNumber}<br>Trucades: ${count}`;
-                });
-
-            // Dibuixa l'eix X (anys)
-            svg.append("g")
-                .attr("class", "x-axis")
-                .attr("transform", `translate(0,${height})`)
-                .call(d3.axisBottom(xScaleYears)
-                    .tickFormat(d3.timeFormat("%Y"))
-                    .ticks(d3.timeYear.every(1)) // Mostra un tick per cada any
-                );
-
-            // Dades d'esdeveniments importants (excloent festivitats i esdeveniments feministes)
-            const importantEvents = [         
-                { date: "2020-03-14", name: "Inici Confinament COVID-19", type: "COVID" }, 
-                { date: "2017-09-28", name: "Aprovació Pacte d'Estat", type: "Legal/Polític"}, 
-                { date: "2022-10-07", name: "Llei 'Només sí és sí'", type: "Legal/Polític"}, 
-                { date: "2018-04-26", name: "Sentència 'La Manada'", type: "Cas Mediàtic" }, 
-            ];
-
-            // Afegir línies verticals per a esdeveniments importants
-            svg.selectAll(".event-line")
-                .data(importantEvents)
-                .join("line")
-                .attr("class", "event-line")
-                .attr("x1", d => xScaleYears(new Date(d.date)))
-                .attr("x2", d => xScaleYears(new Date(d.date)))
-                .attr("y1", 0)
-                .attr("y2", height);
-
-            // Afegir etiquetes per als esdeveniments importants
-            svg.selectAll(".event-label")
-                .data(importantEvents)
-                .join("text")
-                .attr("class", "event-label")
-                .attr("x", d => xScaleYears(new Date(d.date)) + 15) // Desplaçament de 15px a la dreta de la línia
-                .attr("y", height / 2) // Centrat verticalment
-                .attr("text-anchor", "start") // El text comença en aquesta posició
-                .attr("transform", d => `rotate(-90, ${xScaleYears(new Date(d.date)) + 15}, ${height / 2})`) // Rotar -90 graus al voltant del punt d'inici del text
-                .text(d => d.name);
-        }
-
-        // --- Visualització: Gràfic de Canvis Post-Esdeveniment (Before-After Plot) ---
-
-        // Funció per configurar els filtres del gràfic de canvis
+        // --- Funcions d'Utilitat i Llegenda ---
+        function addTooltip(selection, contentFunction) { selection.on("mouseover", (event, d) => { tooltip.transition().duration(200).style("opacity", 1); tooltip.html(contentFunction(d)); }).on("mousemove", (event) => { tooltip.style("left", (event.pageX + 15) + "px").style("top", (event.pageY - 15) + "px"); }).on("mouseout", () => { tooltip.transition().duration(500).style("opacity", 0); }); }
+        function drawCalendarLegend() { const eventColor = d3.scaleOrdinal().domain(["Reivindicatiu", "COVID", "Legal/Polític", "Cas Mediàtic", "Festivitat", "Campanya"]).range(["#c2185b", "#00796b", "#1976d2", "#ef6c00", "#388e3c", "#7b1fa2"]); const legendContainer = d3.select("#legend-calendar"); legendContainer.selectAll("*").remove(); legendContainer.append('h3').attr('class', 'text-sm font-semibold text-gray-500 mt-4').text("Llegenda d'esdeveniments"); const legendItems = legendContainer.selectAll(".legend-item").data(eventColor.domain()).enter().append("div").attr("class", "flex items-center"); legendItems.append("div").attr("class", "w-3 h-3 mr-2 border-2").style("border-color", d => eventColor(d)); legendItems.append("span").attr("class", "text-sm text-gray-600").text(d => d); }
+        function drawStripesLegend() { const legendContainer = d3.select("#legend-stripes"); legendContainer.selectAll("*").remove(); legendContainer.append('h3').attr('class', 'text-sm font-semibold text-gray-500 mt-4').text("Volum de Trucades"); const legendContainerWidth = parseInt(legendContainer.style("width")) || 200; const legendWidth = legendContainerWidth > 40 ? legendContainerWidth - 40 : 160; const legendColorScale = d3.scaleSequential(d3.interpolatePurples).domain([0, 100]); const gradientId = "stripes-legend-gradient"; const svgLegend = legendContainer.append("svg").attr("width", legendWidth).attr("height", 25); const linearGradient = svgLegend.append("defs").append("linearGradient").attr("id", gradientId).attr("x1", "0%").attr("y1", "0%").attr("x2", "100%").attr("y2", "0%"); linearGradient.append("stop").attr("offset", "0%").attr("stop-color", legendColorScale(0)); linearGradient.append("stop").attr("offset", "100%").attr("stop-color", legendColorScale(100)); svgLegend.append("rect").attr("width", legendWidth).attr("height", 25).style("fill", `url(#${gradientId})`); const legendLabels = legendContainer.append("div").attr("class", "flex justify-between text-xs text-gray-600 mt-1"); legendLabels.append("span").text("Baix"); legendLabels.append("span").text("Alt"); }
+        
+        // --- Visualitzacions Base ---
+        function drawCalendarHeatmap(data, container) { container.selectAll("*").remove();const dataByDay=d3.rollup(data,v=>v.length,d=>d3.timeDay.floor(d.parsedDate));const yearsData=Array.from(d3.group(data,d=>d.parsedDate.getFullYear()).keys()).sort();const specialEvents=[{month:3,day:8,name:"Dia de la Dona",type:"Reivindicatiu"},{date:"2018-03-08",name:"Vaga Feminista 8M",type:"Reivindicatiu"},{month:11,day:25,name:"25N",type:"Reivindicatiu"},{date:"2020-03-14",name:"Inici Confinament COVID-19",type:"COVID"},{date:"2017-09-28",name:"Aprovació Pacte d'Estat",type:"Legal/Polític"},{date:"2022-10-07",name:"Llei 'Només sí és sí'",type:"Legal/Polític"},{date:"2018-04-26",name:"Sentència 'La Manada'",type:"Cas Mediàtic"},{month:1,day:1,name:"Any Nou",type:"Festivitat"},{month:6,day:24,name:"Sant Joan",type:"Festivitat"},{month:12,day:25,name:"Nadal",type:"Festivitat"},{month:12,day:10,name:"Dia Drets Humans",type:"Festivitat"},{date:"2021-11-25",name:"Campanya 'Visibilitzem violències'",type:"Campanya"},];const eventColor=d3.scaleOrdinal().domain(["Reivindicatiu","COVID","Legal/Polític","Cas Mediàtic","Festivitat","Campanya"]).range(["#c2185b","#00796b","#1976d2","#ef6c00","#388e3c","#7b1fa2"]);const eventsByDate=new Map();yearsData.forEach(year=>{specialEvents.forEach(e=>{let eventDate;if(e.date)eventDate=parseEventDate(e.date);else eventDate=new Date(year,e.month-1,e.day);if(eventDate&&eventDate.getFullYear()===year){eventsByDate.set(d3.timeDay.floor(eventDate).getTime(),e);}});});const cellSize=17;const yearHeight=cellSize*7+40;const svg=container.append("svg").attr("width","100%").attr("height",yearsData.length*yearHeight+20);const color=d3.scaleSequential(d3.interpolatePurples).domain([0,d3.max(dataByDay.values())||1]);const yearSvg=svg.selectAll("g").data(yearsData).join("g").attr("transform",(d,i)=>`translate(50, ${i*yearHeight+50})`);yearSvg.append("text").attr("x",-5).attr("y",-10).attr("class","calendar-year").text(d=>d);const dayCells=yearSvg.selectAll(".day").data(d=>d3.timeDays(new Date(d,0,1),new Date(d+1,0,1))).join("g");dayCells.append("rect").attr("width",cellSize-1.5).attr("height",cellSize-1.5).attr("x",d=>d3.timeWeek.count(d3.timeYear(d),d)*cellSize).attr("y",d=>d.getUTCDay()*cellSize).attr("fill",d=>color(dataByDay.get(d)||0));dayCells.call(addTooltip,d=>{let eventInfo="";const event=eventsByDate.get(d.getTime());if(event)eventInfo=`<br><strong>${event.name}</strong>`;return`${d3.timeFormat("%d/%m/%Y")(d)}<br>${dataByDay.get(d)||0} trucades${eventInfo}`;});dayCells.append("rect").attr("class","event-marker-rect").attr("x",d=>d3.timeWeek.count(d3.timeYear(d),d)*cellSize).attr("y",d=>d.getUTCDay()*cellSize).attr("width",cellSize-1.5).attr("height",cellSize-1.5).style("stroke",d=>{const event=eventsByDate.get(d.getTime());return event?eventColor(event.type):"none";});}
+        function drawStripesHeatmap(data, container) { container.selectAll("*").remove();const margin={top:30,right:20,bottom:50,left:50};const containerWidth=parseInt(container.style("width"));const containerHeight=parseInt(container.style("height"));const width=containerWidth-margin.left-margin.right;const height=containerHeight-margin.top-margin.bottom;const svg=container.append("svg").attr("width",containerWidth).attr("height",containerHeight).append("g").attr("transform",`translate(${margin.left},${margin.top})`);const dataByWeek=d3.rollup(data,v=>v.length,d=>d3.timeWeek.floor(d.parsedDate));const minYear=d3.min(data,d=>d.parsedDate.getFullYear());const maxYear=d3.max(data,d=>d.parsedDate.getFullYear());const xScaleYears=d3.scaleTime().domain([new Date(minYear,0,1),new Date(maxYear+1,0,1)]).range([0,width]);const maxCallsPerWeek=d3.max(Array.from(dataByWeek.values()));const color=d3.scaleSequential(d3.interpolatePurples).domain([0,maxCallsPerWeek||1]);const weeks=Array.from(dataByWeek.keys()).sort((a,b)=>a-b);svg.selectAll("rect").data(weeks).join("rect").attr("x",d=>xScaleYears(d)).attr("y",0).attr("width",(width/weeks.length)).attr("height",height).attr("fill",d=>color(dataByWeek.get(d)||0)).call(addTooltip,d=>{const year=d.getFullYear();const weekNumber=d3.timeFormat("%W")(d);const count=dataByWeek.get(d)||0;return`Any: ${year}<br>Setmana: ${weekNumber}<br>Trucades: ${count}`;});svg.append("g").attr("class","x-axis").attr("transform",`translate(0,${height})`).call(d3.axisBottom(xScaleYears).tickFormat(d3.timeFormat("%Y")).ticks(d3.timeYear.every(1)));const importantEvents=[{date:"2020-03-14",name:"Inici Confinament COVID-19",type:"COVID"},{date:"2017-09-28",name:"Aprovació Pacte d'Estat",type:"Legal/Polític"},{date:"2022-10-07",name:"Llei 'Només sí és sí'",type:"Legal/Polític"},{date:"2018-04-26",name:"Sentència 'La Manada'",type:"Cas Mediàtic"},];svg.selectAll(".event-line").data(importantEvents).join("line").attr("class","event-line").attr("x1",d=>xScaleYears(parseEventDate(d.date))).attr("x2",d=>xScaleYears(parseEventDate(d.date))).attr("y1",0).attr("y2",height);svg.selectAll(".event-label").data(importantEvents).join("text").attr("class","event-label").attr("x",d=>xScaleYears(parseEventDate(d.date))+15).attr("y",height/2).attr("text-anchor","start").attr("transform",d=>`rotate(-90, ${xScaleYears(parseEventDate(d.date))+15}, ${height/2})`).text(d=>d.name);}
+        
+        // --- Visualització: Gràfic de Canvis Post-Esdeveniment ---
         function setupBeforeAfterFilters() {
             const filterContainer = d3.select("#before-after-filters");
-            filterContainer.selectAll("*").remove(); // Neteja els filtres existents
-
+            filterContainer.selectAll("*").remove(); 
             if (!loadedData.base) return;
 
-            // Segment by dropdown
-            const segmentByOptions = [
-                { value: "Província", text: "Província" },
-                { value: "Gènere", text: "Gènere" },
-                { value: "Franja d'edat", text: "Franja d'edat" }
-            ];
-            const segmentBySelect = filterContainer.append("label") // Afegit label
-                .attr("class", "text-sm font-semibold text-gray-700 mr-2")
-                .text("Segmenta per:")
-                .append("select") // Moure select dins del label
-                .attr("id", "segment-by")
-                .attr("class", "p-2 border rounded-md mr-4 text-sm");
-            segmentBySelect.selectAll("option")
-                .data(segmentByOptions)
-                .join("option")
-                .attr("value", d => d.value)
-                .text(d => d.text);
+            const segmentByOptions = [{ value: "Provincia", text: "Província" }, { value: "Sexe", text: "Gènere" }, { value: "Edat", text: "Franja d'edat" }];
+            const segmentBySelect = filterContainer.append("label").attr("class", "text-sm font-semibold text-gray-700 mr-2").text("Segmenta per:").append("select").attr("id", "segment-by").attr("class", "p-2 border rounded-md mr-4 text-sm");
+            segmentBySelect.selectAll("option").data(segmentByOptions).join("option").attr("value", d => d.value).text(d => d.text);
+            
+            const eventSelect = filterContainer.append("label").attr("class", "text-sm font-semibold text-gray-700 mr-2").text("Esdeveniment:").append("select").attr("id", "event-select").attr("class", "p-2 border rounded-md text-sm");
+            eventSelect.append("option").attr("value", "").text("-- Selecciona un esdeveniment --").property("selected", true);
+            eventSelect.selectAll(null).data(relevantEvents).enter().append("option").attr("value", d => d.date).text(d => d.name);
+            
+            const customDateLabel = filterContainer.append("label").attr("class", "text-sm font-semibold text-gray-700 ml-4 mr-2").text("Data Personalitzada:");
+            const customDateInput = customDateLabel.append("input").attr("type", "date").attr("id", "custom-event-date").attr("class", "p-2 border rounded-md text-sm");
+
+            const windowSizeSelect = filterContainer.append("label").attr("class", "text-sm font-semibold text-gray-700 ml-4 mr-2").text("Finestra (setmanes):");
+            const windowSizeSelectControl = windowSizeSelect.append("select").attr("id", "window-size").attr("class", "p-2 border rounded-md text-sm");
+            windowSizeSelectControl.selectAll("option").data([{ value: 1, text: "1 setmana" }, { value: 2, text: "2 setmanes" }]).join("option").attr("value", d => d.value).text(d => d.text).property("selected", d => d.value === 2);
+
             segmentBySelect.on("change", updateBeforeAfterPlot);
-
-            // Event select dropdown
-            const eventSelect = filterContainer.append("label") // Afegit label
-                .attr("class", "text-sm font-semibold text-gray-700 mr-2")
-                .text("Esdeveniment:")
-                .append("select") // Moure select dins del label
-                .attr("id", "event-select")
-                .attr("class", "p-2 border rounded-md text-sm");
-            eventSelect.selectAll("option")
-                .data(relevantEvents)
-                .join("option")
-                .attr("value", d => d.date)
-                .text(d => d.name);
-            eventSelect.on("change", updateBeforeAfterPlot);
-
-            // Custom date input
-            const customDateLabel = filterContainer.append("label")
-                .attr("class", "text-sm font-semibold text-gray-700 ml-4 mr-2")
-                .text("Data Personalitzada:");
-            const customDateInput = customDateLabel.append("input")
-                .attr("type", "date")
-                .attr("id", "custom-event-date")
-                .attr("class", "p-2 border rounded-md text-sm");
-            customDateInput.on("change", updateBeforeAfterPlot); // Re-dibuixa en canviar la data
-
-            // Window size dropdown
-            const windowSizeSelect = filterContainer.append("label") // Afegit label
-                .attr("class", "text-sm font-semibold text-gray-700 ml-4 mr-2")
-                .text("Finestra (setmanes):")
-                .append("select") // Moure select dins del label
-                .attr("id", "window-size")
-                .attr("class", "p-2 border rounded-md text-sm");
-            windowSizeSelect.selectAll("option")
-                .data([
-                    { value: 1, text: "1 setmana" },
-                    { value: 2, text: "2 setmanes" }
-                ])
-                .join("option")
-                .attr("value", d => d.value)
-                .text(d => d.text)
-                .property("selected", d => d.value === 2); // Default to 2 weeks
-            windowSizeSelect.on("change", updateBeforeAfterPlot);
-
-            // Set default values and trigger initial plot
-            segmentBySelect.property("value", segmentByOptions[0].value);
-            eventSelect.property("value", relevantEvents[0]?.date || ""); 
-            customDateInput.property("value", relevantEvents[0]?.date || ""); // Pre-fill custom date with default event date
-            windowSizeSelect.property("value", 2);
+            windowSizeSelectControl.on("change", updateBeforeAfterPlot);
+            eventSelect.on("change", function() { d3.select("#custom-event-date").property("value", ""); updateBeforeAfterPlot(); });
+            customDateInput.on("change", function() { d3.select("#event-select").property("value", ""); updateBeforeAfterPlot(); });
 
             updateBeforeAfterPlot();
         }
 
-        // Funció per actualitzar el gràfic de canvis segons els filtres seleccionats
         function updateBeforeAfterPlot() {
             const selectedSegmentBy = d3.select("#segment-by").node().value;
             const selectedWindowSize = parseInt(d3.select("#window-size").node().value);
-            
             let eventToPlot = null;
             const customDateValue = d3.select("#custom-event-date").node().value;
             const selectedEventDateDropdown = d3.select("#event-select").node().value;
 
             if (customDateValue) {
-                // Si hi ha una data personalitzada, la utilitzem
                 eventToPlot = { date: customDateValue, name: `Data Personalitzada: ${customDateValue}` };
-                // Opcionalment, podríem deshabilitar o resetejar el dropdown d'esdeveniments predefinits aquí
             } else if (selectedEventDateDropdown) {
-                // Si no hi ha data personalitzada, usem l'esdeveniment seleccionat del desplegable
                 eventToPlot = relevantEvents.find(e => e.date === selectedEventDateDropdown);
             }
 
             if (loadedData.base && eventToPlot && eventToPlot.date) {
                 drawBeforeAfterPlot(loadedData.base, d3.select("#before-after-plot-svg-container"), selectedSegmentBy, eventToPlot, selectedWindowSize);
             } else {
-                // Neteja el gràfic i mostra un missatge si no hi ha esdeveniment o dades vàlides
                 d3.select("#before-after-plot-svg-container").selectAll("*").remove();
-                d3.select("#before-after-plot-svg-container").append("svg")
-                    .attr("width", "100%").attr("height", "100%")
-                    .append("text")
-                    .attr("x", "50%").attr("y", "50%").attr("text-anchor", "middle")
-                    .attr("class", "text-gray-500 text-lg")
-                    .text("Selecciona un esdeveniment o una data per visualitzar els canvis.");
+                d3.select("#before-after-plot-svg-container").append("svg").attr("width", "100%").attr("height", "100%").append("text").attr("x", "50%").attr("y", "50%").attr("text-anchor", "middle").attr("class", "text-gray-500 text-lg").text("Selecciona un esdeveniment o una data.");
             }
         }
 
-        // Funció per dibuixar el gràfic de canvis (Before-After Plot)
         function drawBeforeAfterPlot(data, container, segmentByKey, event, windowSize) {
-            container.selectAll("*").remove(); // Neteja qualsevol SVG preexistent
+            container.selectAll("*").remove();
+            if (!data || data.length === 0) return;
 
-            if (!data || data.length === 0) {
-                container.append("svg")
-                    .attr("width", "100%").attr("height", "100%")
-                    .append("text")
-                    .attr("x", "50%").attr("y", "50%").attr("text-anchor", "middle")
-                    .attr("class", "text-gray-500 text-lg")
-                    .text("No hi ha dades disponibles per a aquesta visualització.");
-                return;
-            }
+            const eventDate = parseEventDate(event.date);
+            if (!eventDate) return;
 
-            const eventDate = new Date(event.date); 
-            
-            // Defineix les finestres de temps "abans" i "després"
             const beforeStart = d3.timeWeek.offset(eventDate, -windowSize);
-            const beforeEnd = d3.timeWeek.offset(eventDate, 0); // Fins a l'inici de la setmana de l'esdeveniment
-            const afterStart = d3.timeWeek.offset(eventDate, 0); // Des de l'inici de la setmana de l'esdeveniment
+            const beforeEnd = d3.timeWeek.offset(eventDate, 0);
+            const afterStart = d3.timeWeek.offset(eventDate, 0);
             const afterEnd = d3.timeWeek.offset(eventDate, windowSize);
 
+            const aggregatedData = d3.rollup(data, v => { const callsBefore = v.filter(d => d.parsedDate >= beforeStart && d.parsedDate < beforeEnd).length; const callsAfter = v.filter(d => d.parsedDate >= afterStart && d.parsedDate < afterEnd).length; return { before: callsBefore, after: callsAfter }; }, d => { const segmentValue = d[segmentByKey]; if (!segmentValue || segmentValue.toLowerCase() === "no consta") { return "No especificada"; } return segmentValue; });
+            
+            let plotData = Array.from(aggregatedData, ([segment, counts]) => { 
+                const change = (counts.before > 0) ? ((counts.after - counts.before) / counts.before) * 100 : (counts.after > 0 ? 100 : 0);
+                return { segment, before: counts.before, after: counts.after, change }; 
+            }).filter(d => (d.before + d.after) >= 10); // <-- ÚNIC CANVI D'AQUESTA VERSIÓ
 
-            // Agrupa les dades per la clau de segmentació seleccionada
-            const aggregatedData = d3.rollup(processedData,
-                v => {
-                    const callsBefore = v.filter(d => d.parsedDate >= beforeStart && d.parsedDate < beforeEnd).length;
-                    const callsAfter = v.filter(d => d.parsedDate >= afterStart && d.parsedDate < afterEnd).length;
-                    return { before: callsBefore, after: callsAfter };
-                },
-                d => d[segmentByKey] // Clau de segmentació
-            );
+            if (segmentByKey === "Edat") { const orderedAgeOptions = [ "Menors de 18 anys", "De 18 a 30 anys", "De 31 a 45 anys", "De 46 a 65 anys", "Més de 65 anys", "No especificada" ]; plotData.sort((a, b) => orderedAgeOptions.indexOf(a.segment) - orderedAgeOptions.indexOf(b.segment)); } else { plotData.sort((a,b) => b.change - a.change); }
 
-            // Transforma les dades agregades en el format del gràfic de dumbbell
-            let plotData = Array.from(aggregatedData, ([segment, counts]) => {
-                const change = (counts.before > 0) ? ((counts.after - counts.before) / counts.before) * 100 : (counts.after > 0 ? 100 : 0); // Si 'before' és 0 i 'after' > 0, considerem 100% de pujada
-                return {
-                    segment: segment,
-                    before: counts.before,
-                    after: counts.after,
-                    change: change // Canvi percentual
-                };
-            }).filter(d => d.before > 0 || d.after > 0); // Filtra segments sense cap trucada
-
-            // Ordena les dades segons la clau de segmentació
-            if (segmentByKey === "Franja d'edat") {
-                plotData.sort((a, b) => {
-                    return orderedAgeOptions.indexOf(a.segment) - orderedAgeOptions.indexOf(b.segment);
-                });
-            } else {
-                plotData.sort((a,b) => b.change - a.change); // Ordena per canvi percentual (descendent per defecte si no és edat)
-            }
-
-
-            // Configuració de les dimensions del gràfic
-            const margin = { top: 40, right: 80, bottom: 60, left: 100 };
+            const margin = { top: 40, right: 80, bottom: 60, left: 120 };
             const containerWidth = parseInt(container.style("width"));
             const containerHeight = parseInt(container.style("height"));
+            if (!containerWidth || !containerHeight) return;
             const width = containerWidth - margin.left - margin.right;
             const height = containerHeight - margin.top - margin.bottom;
 
-            const svg = container.append("svg")
-                .attr("width", containerWidth)
-                .attr("height", containerHeight)
-                .append("g")
-                .attr("transform", `translate(${margin.left},${margin.top})`);
+            const svg = container.append("svg").attr("width", containerWidth).attr("height", containerHeight).append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+            
+            if (plotData.length === 0) {
+                svg.append("text")
+                    .attr("x", width / 2)
+                    .attr("y", height / 2)
+                    .attr("text-anchor", "middle")
+                    .attr("class", "text-gray-500 text-lg")
+                    .text("No hi ha prou dades per a aquest filtre.");
+                return;
+            }
 
-            // Escales
-            // L'eix X ara abasta el rang complet de trucades (abans i després)
-            const x = d3.scaleLinear()
-                .domain([0, d3.max(plotData, d => Math.max(d.before, d.after)) || 10])
-                .nice()
-                .range([0, width]);
+            const x = d3.scaleLinear().domain([0, d3.max(plotData, d => Math.max(d.before, d.after)) || 10]).nice().range([0, width]);
+            const y = d3.scaleBand().domain(plotData.map(d => d.segment)).range([0, height]).padding(0.5);
+            const pointColor = d3.scaleOrdinal().domain(["before", "after"]).range(["#ab47bc", "#6a1b9a"]);
 
-            // L'eix Y és una escala de banda per als segments (Província, Gènere, Edat)
-            const y = d3.scaleBand()
-                .domain(plotData.map(d => d.segment))
-                .range([0, height])
-                .padding(0.5); // Espaiat entre les bandes
+            svg.append("g").attr("transform", `translate(0,${height})`).call(d3.axisBottom(x).ticks(5).tickFormat(d3.format("d"))).attr("class", "x-axis").append("text").attr("x", width / 2).attr("y", margin.bottom - 10).attr("class", "line-axis-label").text("Nombre de Trucades");
+            svg.append("g").call(d3.axisLeft(y)).attr("class", "y-axis");
 
-            // Escala de colors per als punts (abans/després)
-            const pointColor = d3.scaleOrdinal()
-                .domain(["before", "after"])
-                .range(["#ab47bc", "#6a1b9a"]); // Lila clar per "abans", lila fosc per "després"
-
-            // Dibuixa els eixos
-            svg.append("g")
-                .attr("transform", `translate(0,${height})`)
-                .call(d3.axisBottom(x).ticks(5).tickFormat(d3.format("d"))) // Ticks d'enters, format d'enter
-                .attr("class", "x-axis")
-                .append("text")
-                .attr("x", width / 2)
-                .attr("y", margin.bottom - 10)
-                .attr("class", "line-axis-label")
-                .text("Nombre de Trucades");
-
-            svg.append("g")
-                .call(d3.axisLeft(y))
-                .attr("class", "y-axis")
-                .append("text")
-                .attr("transform", "rotate(-90)")
-                .attr("y", -margin.left + 20)
-                .attr("x", -height / 2)
-                .attr("dy", "1em")
-                .attr("class", "line-axis-label")
-                .text(segmentByKey); // Etiqueta dinàmica de l'eix Y
-
-            // Dibuixa les línies (dumbbells)
-            svg.selectAll(".dumbbell-line")
-                .data(plotData)
-                .join("line")
-                .attr("class", "dumbbell-line")
-                .attr("x1", d => x(d.before))
-                .attr("x2", d => x(d.after))
-                .attr("y1", d => y(d.segment) + y.bandwidth() / 2)
-                .attr("y2", d => y(d.segment) + y.bandwidth() / 2)
-                .attr("stroke", "#999") // Gris clar per les línies
-                .attr("stroke-width", 1);
-
-            // Dibuixa els punts (abans)
-            svg.selectAll(".point-before")
-                .data(plotData)
-                .join("circle")
-                .attr("class", "point-before")
-                .attr("cx", d => x(d.before))
-                .attr("cy", d => y(d.segment) + y.bandwidth() / 2)
-                .attr("r", 5) // Radi del cercle
-                .attr("fill", pointColor("before"))
-                .call(addTooltip, d => `Segment: ${d.segment}<br>Abans: ${d.before} trucades`);
-
-            // Dibuixa els punts (després)
-            svg.selectAll(".point-after")
-                .data(plotData)
-                .join("circle")
-                .attr("class", "point-after")
-                .attr("cx", d => x(d.after))
-                .attr("cy", d => y(d.segment) + y.bandwidth() / 2)
-                .attr("r", 5) // Radi del cercle
-                .attr("fill", pointColor("after"))
-                .call(addTooltip, d => `Segment: ${d.segment}<br>Després: ${d.after} trucades`);
-
-            // Afegeix les etiquetes de canvi percentual
-            svg.selectAll(".change-label")
-                .data(plotData)
-                .join("text")
-                .attr("class", "change-label")
-                .attr("x", d => x(d.after) + (d.after > d.before ? 8 : -8)) // Posiciona l'etiqueta a la dreta/esquerra del punt "després"
-                .attr("y", d => y(d.segment) + y.bandwidth() / 2)
-                .attr("dy", "0.35em")
-                .attr("text-anchor", d => d.after > d.before ? "start" : "end") // Alineació del text
-                .attr("fill", d => d.change >= 0 ? "#22c55e" : "#ef4444") // Verd per pujada, vermell per baixada
-                .text(d => `${d.change.toFixed(1)}%`); // Format a un decimal
-
-            // Afegeix el títol del gràfic
-            svg.append("text")
-                .attr("x", width / 2)
-                .attr("y", -margin.top / 2)
-                .attr("text-anchor", "middle")
-                .attr("class", "text-lg font-bold text-gray-800")
-                .text(`Canvis en Trucades: ${event.name} (${windowSize} setmanes abans/després)`);
+            svg.selectAll(".dumbbell-line").data(plotData).join("line").attr("class", "dumbbell-line").attr("x1", d => x(d.before)).attr("x2", d => x(d.after)).attr("y1", d => y(d.segment) + y.bandwidth() / 2).attr("y2", d => y(d.segment) + y.bandwidth() / 2).attr("stroke", "#999").attr("stroke-width", 1);
+            svg.selectAll(".point-before").data(plotData).join("circle").attr("class", "point-before").attr("cx", d => x(d.before)).attr("cy", d => y(d.segment) + y.bandwidth() / 2).attr("r", 5).attr("fill", pointColor("before")).call(addTooltip, d => `Segment: ${d.segment}<br>Abans: ${d.before} trucades`);
+            svg.selectAll(".point-after").data(plotData).join("circle").attr("class", "point-after").attr("cx", d => x(d.after)).attr("cy", d => y(d.segment) + y.bandwidth() / 2).attr("r", 5).attr("fill", pointColor("after")).call(addTooltip, d => `Segment: ${d.segment}<br>Després: ${d.after} trucades`);
+            svg.selectAll(".change-label").data(plotData).join("text").attr("class", "change-label").attr("x", d => x(d.after) + (d.after > d.before ? 8 : -8)).attr("y", d => y(d.segment) + y.bandwidth() / 2).attr("dy", "0.35em").attr("text-anchor", d => d.after > d.before ? "start" : "end").attr("fill", d => d.change >= 0 ? "#22c55e" : "#ef4444").text(d => `${d.change.toFixed(1)}%`);
+            svg.append("text").attr("x", width / 2).attr("y", -margin.top / 2).attr("text-anchor", "middle").attr("class", "text-lg font-bold text-gray-800").text(`Canvis en Trucades: ${event.name} (${windowSize} setmanes abans/després)`);
         }
     </script>
 </body>
